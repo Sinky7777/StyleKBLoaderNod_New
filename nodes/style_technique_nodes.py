@@ -68,8 +68,14 @@ class StyleTechniqueKnowledgeBase:
             }
         }
 
-    RETURN_TYPES = ("STYLE_KB", "STRING", "INT")
-    RETURN_NAMES = ("knowledge_base", "style_list_json", "total_entries")
+    RETURN_TYPES = ("STYLE_KB", "STRING", "STRING", "STRING", "INT")
+    RETURN_NAMES = (
+        "knowledge_base",
+        "style_list_json",
+        "primary_tags_json",
+        "secondary_tags_json",
+        "total_entries",
+    )
     FUNCTION = "load_kb"
     CATEGORY = "StyleTechnique"
 
@@ -101,25 +107,44 @@ class StyleTechniqueKnowledgeBase:
             with open(kb_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             entries = data.get("entries") or []
+
             style_names: List[str] = []
-            seen = set()
+            seen_styles = set()
+            primary_set: List[str] = []
+            seen_primary = set()
+            secondary_set: List[str] = []
+            seen_secondary = set()
+
             for e in entries:
                 name = e.get("style_special_word") or ""
-                if not name or name in seen:
-                    continue
-                style_names.append(name)
-                seen.add(name)
+                if name and name not in seen_styles:
+                    style_names.append(name)
+                    seen_styles.add(name)
+                for t in e.get("techniques") or []:
+                    p = t.get("primary") or ""
+                    s = t.get("secondary") or ""
+                    if p and p not in seen_primary:
+                        primary_set.append(p)
+                        seen_primary.add(p)
+                    if s and s not in seen_secondary:
+                        secondary_set.append(s)
+                        seen_secondary.add(s)
+
             cache = {
                 "data": data,
                 "entries": entries,
                 "style_names": style_names,
+                "primary_tags": primary_set,
+                "secondary_tags": secondary_set,
                 "path": str(kb_path),
             }
             StyleTechniqueKnowledgeBase._cache = cache
 
         style_list_json = json.dumps(cache["style_names"], ensure_ascii=False)
+        primary_json = json.dumps(cache["primary_tags"], ensure_ascii=False)
+        secondary_json = json.dumps(cache["secondary_tags"], ensure_ascii=False)
         total = len(cache["style_names"])
-        return (cache, style_list_json, total)
+        return (cache, style_list_json, primary_json, secondary_json, total)
 
 
 class StyleTechniquePicker:
